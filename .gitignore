@@ -1,0 +1,15 @@
+# ===== 密钥：绝不提交到 GitHub =====
+config.py
+.env
+*.env
+
+# ===== Python 缓存 =====
+__pycache__/
+*.pyc
+
+# ===== 虚拟环境 =====
+venv/
+.venv/
+
+# ===== 本地数据文件 =====
+myrecord.json
