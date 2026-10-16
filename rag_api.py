@@ -1,10 +1,10 @@
 
 import os
-os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"   # 模型下载走国内镜像
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"   
 from fastembed import TextEmbedding
 from langchain_openai import ChatOpenAI
 import numpy as np
-from fastapi import FastAPI      # 从 fastapi 工具箱里拿 FastAPI 工具
+from fastapi import FastAPI      
 from pydantic import BaseModel   # 从 pydantic 工具箱里拿 BaseModel 工具
 import uvicorn                   # 整个 uvicorn 工具箱都拿来（因为要用 uvicorn.run）
 from rag_embedding import search,llm
