@@ -1,5 +1,4 @@
 # ============================================================
-# 项目二第二课：语义版 RAG（换真 embedding 模型）
 # 和 rag_demo.py 的区别：词频向量 → 语义向量
 # 骨架（切块→检索→生成）完全一样
 # ============================================================
@@ -11,7 +10,6 @@ from langchain_openai import ChatOpenAI
 import numpy as np
 
 
-# ===== 资料（和词频版一样） =====
 
 KNOWLEDGE = """
 RAG
@@ -79,18 +77,12 @@ API 故障排查
 本地嵌入模型（如 fastembed 加载的 bge-small-zh）在电脑本地跑，不联网、不花钱、没有速率限制。首次使用要下载模型文件（国内用 HF_ENDPOINT 镜像加速），之后秒加载。适合对隐私和成本敏感的场景。
 """
 
-
-
-# ===== 第 1-2 步：切块 =====
-# 切块：按 === 切开 → 撕掉每块首尾空格 → 丢掉空块
 chunks = []
 for c in KNOWLEDGE.split("==="):
     c = c.strip()
     if c:
         chunks.append(c)
 print(f"共 {len(chunks)} 块")
-
-# ===== 第 3 步：语义向量化（embedding 模型） =====
 
 
 def to_embed(texts):
@@ -100,7 +92,6 @@ def to_embed(texts):
 embed_model = TextEmbedding("BAAI/bge-small-zh-v1.5")   # 上次下载过，这次秒加载
 chunk_vecs = to_embed(chunks)
 
-# ===== 第 4 步：检索（余弦相似度，和词频版同一套） =====
 def cosine_sim(v1, v2):
     return float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
 
