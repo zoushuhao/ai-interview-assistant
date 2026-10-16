@@ -1,6 +1,5 @@
 # ============================================================
 # 项目一：岗位匹配 Agent（LangGraph 版）
-# 复用天气 Agent 的同一张图，只换了【工具】+【提示词】
 # ============================================================
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
@@ -8,7 +7,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from typing import TypedDict, Annotated
-import requests   # 发 HTTP 请求（联网用）
+import requests   
 
 # ===================== 岗位库（先内置 4 个示例，后续可换真实数据） =====================
 JOBS = {
@@ -73,7 +72,6 @@ extractor = ChatOpenAI(
     base_url=QWEN_BASE_URL,
 )
 
-# ===================== 工具 3：解析简历（智能工具：内部调 LLM） =====================
 @tool
 def parse_resume(resume_text: str) -> str:
     """从简历原文中提取技能列表。resume_text 是简历的完整文字（可以很长）。返回提取出的技能，用顿号分隔。"""
@@ -118,7 +116,6 @@ def search_remote_jobs(keyword: str) -> str:
         # 联网失败时回退，不让整个 Agent 崩掉
         return f"联网失败（{e}），请用 search_jobs 搜内置岗位库"
 
-# ===================== 模型（绑定工具） =====================
 tools = [search_jobs, calculate_match, parse_resume, generate_interview_questions, search_remote_jobs]
 
 llm = ChatOpenAI(
@@ -127,7 +124,6 @@ llm = ChatOpenAI(
     base_url=QWEN_BASE_URL,
 ).bind_tools(tools)
 
-# ===================== 图（和天气 Agent 一模一样，没改） =====================
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -157,7 +153,6 @@ graph.add_conditional_edges("model", should_continue, {"tools": "tools", "end": 
 graph.add_edge("tools", "model")
 app = graph.compile()
 
-# ===================== 对话（提示词换成了"求职顾问"，并支持多轮记忆） =====================
 SYSTEM_PROMPT = (
     "你是一个求职顾问 Agent。用户可能给你：技能清单，或者一整段简历原文。你的任务："
     "1) 如果输入像简历（一大段文字），先调 parse_resume 提取技能；"
@@ -167,7 +162,7 @@ SYSTEM_PROMPT = (
     "如果用户追问（比如要面试题、要学习计划），用 generate_interview_questions 等工具回答。回答简洁。"
 )
 
-# 多轮记忆：messages 在循环外创建，每轮把完整对话历史带回下一轮
+
 
 if __name__ == '__main__':
 
