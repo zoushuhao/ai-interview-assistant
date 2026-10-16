@@ -34,17 +34,23 @@ def chat(req: ChatRequest):
     return {"answer" : resp.content}
 
 # ===== 全局记忆：跨请求记住对话历史 =====
+# 只记"用户说的话 + AI 的最终回答"（干净的对话层）。
+# 不记 Agent 内部的工具调用消息（ToolMessage）：它们只在当轮执行中有用，
+# 跨轮带回去会触发模型兼容问题（之前 500 就是这原因），而且没必要。
 # 历史存在"函数外"，请求之间就不会丢（内存级；重启服务会清空，
 # 生产级做法是存到 Redis/数据库，面试可以这样答）
-session_history = [SystemMessage(content=SYSTEM_PROMPT)]
+session_history = []
 
 @app.post("/match")
 def match(req :MatchRequest):
-    global session_history            # 声明：改的是全局变量，不是新建局部变量
+    global session_history
+    # 每次请求 = 系统提示词 + 历史对话 + 本次输入
+    messages = [SystemMessage(content=SYSTEM_PROMPT)] + session_history + [HumanMessage(content=req.text)]
+    result = match_app.invoke({"messages": messages})
+    # 记忆里只存本轮"用户输入 + AI最终回答"，不存工具中间消息
     session_history.append(HumanMessage(content=req.text))
-    result = match_app.invoke({"messages": session_history})
-    session_history = result["messages"]
-    return {"answer":session_history[-1].content}
+    session_history.append(result["messages"][-1])
+    return {"answer":result["messages"][-1].content}
 
 # 把 static 文件夹里的网页交给 FastAPI 托管：
 # 浏览器访问 http://localhost:8080 就会打开里面的 index.html
