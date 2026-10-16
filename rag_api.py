@@ -33,13 +33,18 @@ def chat(req: ChatRequest):
     resp = llm.invoke(prompt)
     return {"answer" : resp.content}
 
+# ===== 全局记忆：跨请求记住对话历史 =====
+# 历史存在"函数外"，请求之间就不会丢（内存级；重启服务会清空，
+# 生产级做法是存到 Redis/数据库，面试可以这样答）
+session_history = [SystemMessage(content=SYSTEM_PROMPT)]
+
 @app.post("/match")
 def match(req :MatchRequest):
-    messages = [SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=req.text)]
-    result = match_app.invoke({"messages": messages})
-    messages = result["messages"]
-    return {"answer":messages[-1].content}
+    global session_history            # 声明：改的是全局变量，不是新建局部变量
+    session_history.append(HumanMessage(content=req.text))
+    result = match_app.invoke({"messages": session_history})
+    session_history = result["messages"]
+    return {"answer":session_history[-1].content}
 
 # 把 static 文件夹里的网页交给 FastAPI 托管：
 # 浏览器访问 http://localhost:8080 就会打开里面的 index.html
