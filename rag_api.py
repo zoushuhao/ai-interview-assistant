@@ -13,16 +13,23 @@ from fastapi.staticfiles import StaticFiles   # 让 FastAPI 顺便托管网页�
 from pathlib import Path                      # 处理文件路径
 from job_match_agent import app as match_app, SYSTEM_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage
+from fastapi.responses import StreamingResponse   # 流式响应工具
+
 
 class ChatRequest(BaseModel):
     question: str
 class MatchRequest(BaseModel):
     text: str
 
+def gen(prompt):
+    for chunk in llm.stream(prompt):
+        if chunk.content:
+            yield chunk.content
+
 app = FastAPI()
 app.add_middleware(CORSMiddleware,allow_origins = ["*"],allow_methods=["*"],allow_headers=["*"])
 
-@app.post("/chat")
+@app.post("/chat/stream")
 def chat(req: ChatRequest):
     question = req.question
     context = "\n\n".join(search(question))
@@ -30,8 +37,8 @@ def chat(req: ChatRequest):
         "根据下面的资料回答问题。如果资料里没有答案，直接说'资料里没有'，不要编。\n\n"
         f"资料：\n{context}\n\n问题：{question}\n回答："
     )
-    resp = llm.invoke(prompt)
-    return {"answer" : resp.content}
+    
+    return StreamingResponse(gen(prompt), media_type="text/plain;charset=utf-8")
 
 # ===== 全局记忆：跨请求记住对话历史 =====
 # 只记"用户说的话 + AI 的最终回答"（干净的对话层）。

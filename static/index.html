@@ -214,6 +214,7 @@
         div.textContent = text;
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
+        return div;   // 把气泡交出去，流式更新要用它
     }
 
     sendBtn.onclick = async function () {
@@ -224,8 +225,27 @@
         sendBtn.disabled = true;
         sendBtn.textContent = "思考中...";
         try {
-            const data = await ask("/chat", { question: q });
-            addMsg(data.answer || "（没有返回内容）", "ai");
+            // 流式：拿连接 → 抽吸管 → 一口一口吸 → 翻译并实时显示
+            const resp = await fetch("/chat/stream", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question: q })
+            });
+            if (!resp.ok) {
+                addMsg("请求失败（服务返回错误）", "ai");
+            } else {
+                const reader = resp.body.getReader();          // 吸管
+                const decoder = new TextDecoder();             // 字节翻译官
+                let answer = "";
+                const aiMsg = addMsg("", "ai");                // 先建空气泡
+                while (true) {
+                    const { done, value } = await reader.read();  // 吸一口
+                    if (done) break;                           // 吸完了
+                    answer += decoder.decode(value, { stream: true });  // 翻译并拼
+                    aiMsg.textContent = answer;                // 实时更新气泡
+                    chatBox.scrollTop = chatBox.scrollHeight;  // 自动滚到底
+                }
+            }
         } catch (e) {
             addMsg("请求失败：" + e.message + "（服务在运行吗？）", "ai");
         }
