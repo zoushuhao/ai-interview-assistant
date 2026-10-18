@@ -14,31 +14,37 @@ from pathlib import Path                      # 处理文件路径
 from job_match_agent import app as match_app, SYSTEM_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage
 from fastapi.responses import StreamingResponse   # 流式响应工具
-
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 
 class ChatRequest(BaseModel):
     question: str
 class MatchRequest(BaseModel):
     text: str
 
-def gen(prompt):
-    for chunk in llm.stream(prompt):
-        if chunk.content:
-            yield chunk.content
+def gen(chain, question):
+    for chunk in chain.stream(question):
+        yield chunk
+        
+
+def retrieve(question):
+    context = "\n\n".join(search(question))
+    return context
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware,allow_origins = ["*"],allow_methods=["*"],allow_headers=["*"])
+prompt = ChatPromptTemplate.from_template(
+        "根据下面的资料回答问题。如果资料里没有答案，直接说'资料里没有'，不要编。\n\n"
+        "资料：\n{context}\n\n问题：{question}\n回答："
+    )
+parsers = StrOutputParser()
+chain = {"context": retrieve, "question": RunnablePassthrough()} | prompt | llm | parsers
 
 @app.post("/chat/stream")
 def chat(req: ChatRequest):
     question = req.question
-    context = "\n\n".join(search(question))
-    prompt = (
-        "根据下面的资料回答问题。如果资料里没有答案，直接说'资料里没有'，不要编。\n\n"
-        f"资料：\n{context}\n\n问题：{question}\n回答："
-    )
-    
-    return StreamingResponse(gen(prompt), media_type="text/plain;charset=utf-8")
+    return StreamingResponse(gen(chain, question), media_type="text/plain;charset=utf-8")
 
 # ===== 全局记忆：跨请求记住对话历史 =====
 # 只记"用户说的话 + AI 的最终回答"（干净的对话层）。
